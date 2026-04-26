@@ -10,6 +10,7 @@ import { Send, Paperclip, Mic, User, Sparkles } from 'lucide-react';
 import Background from './components/Background';
 import Logo from './components/Logo';
 import ModeToggle from './components/ModeToggle';
+import LandingPage from './components/LandingPage';
 import { motion, AnimatePresence } from 'motion/react';
 
 // Typewriter effect component
@@ -59,6 +60,7 @@ export default function App() {
   const [isReasoningFinished, setIsReasoningFinished] = useState(true);
   const [isActivating, setIsActivating] = useState(false);
   const [isEngineOnline, setIsEngineOnline] = useState(false);
+  const [showLanding, setShowLanding] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const [sessionUsage, setSessionUsage] = useState(0);
   const [balance, setBalance] = useState(0);
@@ -91,6 +93,7 @@ export default function App() {
       setIsAuthenticated(res.data.authenticated);
       if (res.data.authenticated) {
         setIsEngineOnline(true);
+        setShowLanding(false); // If already authenticated, skip landing or at least sync state
       }
     } catch (err) {
       setIsAuthenticated(false);
@@ -112,6 +115,7 @@ export default function App() {
       await axios.post('/api/auth/logout');
       setIsAuthenticated(false);
       setIsEngineOnline(false);
+      setShowLanding(true);
       setMessages([]);
     } catch (err) {
       console.error('Logout failed:', err);
@@ -221,12 +225,12 @@ export default function App() {
         else setBalance(usage);
       }
     } catch (err) {
-      // Silent fail - we don't let API errors block the UI anymore
+      // Silent fail
     } finally {
-      // Visual transition is guaranteed
       setTimeout(() => {
         setIsActivating(false);
         setIsEngineOnline(true);
+        setShowLanding(false);
       }, 1500);
     }
   };
@@ -305,12 +309,34 @@ export default function App() {
     }
   };
 
+  if (showLanding && !isEngineOnline) {
+    return <LandingPage onStart={handleBridgeConnection} onAuth={isAuthenticated} />;
+  }
+
   return (
     <div 
       className="flex flex-col bg-black text-[#e3e3e3] font-sans overflow-hidden"
       style={{ height: viewportHeight }}
     >
       <Background />
+      
+      {/* Scroll to Bottom Indicator - only shows when paused and new messages arrives */}
+      <AnimatePresence>
+        {isUserScrolling && (isTyping || isThinking) && (
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 20 }}
+            onClick={() => {
+              setIsUserScrolling(false);
+              performAutoScroll();
+            }}
+            className="fixed bottom-32 left-1/2 -translate-x-1/2 z-[60] px-4 py-2 bg-purple-600 text-white text-[10px] font-black uppercase tracking-[0.2em] rounded-full shadow-[0_0_20px_rgba(168,85,247,0.4)] cursor-pointer hover:bg-purple-500 transition-all border border-purple-400/30"
+          >
+            Bridge Active • Live Stream Paused
+          </motion.div>
+        )}
+      </AnimatePresence>
       
       {/* Scroll to Bottom Indicator - only shows when paused and new messages arrives */}
       <AnimatePresence>

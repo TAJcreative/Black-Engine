@@ -1,0 +1,22 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User configuration and authentication data",
+      "type": "object",
+      "properties": {
+        "telegramId": { "type": "string", "description": "User's Telegram ID" },
+        "openrouterKey": { "type": "string", "description": "User's OpenRouter API key" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["openrouterKey"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "Collection of user configurations"
+    }
+  }
+}

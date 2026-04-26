@@ -17,6 +17,27 @@
   }
 }
 
+@keyframes scan {
+  0% { transform: translateY(-100%); opacity: 0; }
+  50% { opacity: 1; }
+  100% { transform: translateY(300%); opacity: 0; }
+}
+
+@layer utilities {
+  .animate-scan {
+    animation: scan 4s linear infinite;
+  }
+}
+
+@keyframes progress {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(0); }
+}
+
+.animate-progress {
+  animation: progress 2s ease-out forwards;
+}
+
 @keyframes progress {
   0% { transform: translateX(-100%); }
   100% { transform: translateX(0); }
