@@ -94,48 +94,59 @@ async function startServer() {
 
   // Auth Routes
   app.get('/api/auth/status', (req, res) => {
-    const userKey = req.cookies.openrouter_key;
-    res.json({ authenticated: !!userKey });
+    const sessionId = req.cookies.openrouter_session_id;
+    res.json({ authenticated: !!sessionId });
   });
 
-  app.get('/auth/callback', (req, res) => {
-    const { key } = req.query;
+  app.post('/api/auth/callback', async (req, res) => {
+    const { key, code } = req.body;
+    const authValue = key || code;
     
-    if (!key) {
-      return res.status(400).send('Missing key in callback. Please try again.');
+    if (!authValue) {
+      return res.status(400).json({ error: 'Missing auth value' });
     }
 
-    // Securely store the key in a cookie
-    // SameSite=none and Secure=true are required for iframes in AI Studio
-    res.cookie('openrouter_key', key, {
-      httpOnly: true,
-      secure: true,
-      sameSite: 'none',
-      maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
-    });
+    // Optional: Exchange code for key if it's a code (OpenRouter usually sends key directly in this flow)
+    // But we'll treat it as the key for now as per previous implementation logic.
 
-    res.send(`
-      <html>
-        <body style="background: #131314; color: #e3e3e3; font-family: sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; overflow: hidden;">
-          <div style="text-align: center; padding: 20px;">
-            <h2 style="color: #a855f7; margin-bottom: 15px; font-weight: 900; letter-spacing: 0.1em;">NEURAL BRIDGE SYNCED</h2>
-            <p style="opacity: 0.7; font-size: 14px;">Authentication successful. Returning to Mind Interface...</p>
-            <script>
-              if (window.opener) {
-                window.opener.postMessage({ type: 'OAUTH_AUTH_SUCCESS' }, '*');
-                setTimeout(() => window.close(), 1000);
-              } else {
-                window.location.href = '/';
-              }
-            </script>
-          </div>
-        </body>
-      </html>
-    `);
+    try {
+      // Create a session in Firestore to store this key
+      const sessionRef = db.collection('sessions').doc();
+      await sessionRef.set({
+        key: authValue,
+        createdAt: new Date().toISOString(),
+        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+      });
+
+      // Securely store the sessionId in a cookie
+      res.cookie('openrouter_session_id', sessionRef.id, {
+        httpOnly: true,
+        secure: true,
+        sameSite: 'none',
+        maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
+      });
+
+      res.json({ success: true });
+    } catch (err) {
+      console.error('Firestore session creation failed:', err);
+      res.status(500).json({ error: 'Failed to initialize neural bridge storage.' });
+    }
   });
 
+  // Helper to get key from session
+  async function getApiKey(req: any) {
+    const sessionId = req.cookies.openrouter_session_id;
+    if (sessionId) {
+      const sessionDoc = await db.collection('sessions').doc(sessionId).get();
+      if (sessionDoc.exists) {
+        return sessionDoc.data()?.key;
+      }
+    }
+    return process.env.OPENROUTER_API_KEY;
+  }
+
   app.post('/api/auth/logout', (req, res) => {
-    res.clearCookie('openrouter_key', {
+    res.clearCookie('openrouter_session_id', {
       secure: true,
       sameSite: 'none'
     });
@@ -145,9 +156,7 @@ async function startServer() {
   // Proxy for OpenRouter Chat
   app.post('/api/chat', async (req, res) => {
     const { messages, model } = req.body;
-    const userKey = req.cookies.openrouter_key;
-    const globalKey = process.env.OPENROUTER_API_KEY;
-    const apiKey = userKey || globalKey;
+    const apiKey = await getApiKey(req);
 
     if (!apiKey) {
       return res.status(401).json({ error: 'No active bridge. Please Login with OpenRouter.' });
@@ -178,9 +187,7 @@ async function startServer() {
 
   // Proxy for OpenRouter Balance
   app.get('/api/balance', async (req, res) => {
-    const userKey = req.cookies.openrouter_key;
-    const globalKey = process.env.OPENROUTER_API_KEY;
-    const apiKey = userKey || globalKey;
+    const apiKey = await getApiKey(req);
 
     if (!apiKey) {
       return res.status(401).json({ error: 'No active bridge.' });

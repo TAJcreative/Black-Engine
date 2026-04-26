@@ -17,6 +17,17 @@
     "/users/{userId}": {
       "schema": "User",
       "description": "Collection of user configurations"
+    },
+    "/sessions/{sessionId}": {
+      "schema": {
+        "type": "object",
+        "properties": {
+          "key": { "type": "string" },
+          "createdAt": { "type": "string" },
+          "expiresAt": { "type": "string" }
+        }
+      },
+      "description": "Transient auth sessions"
     }
   }
 }

@@ -7,6 +7,8 @@ import { useState, useEffect, useRef, RefObject } from 'react';
 import { AppMode, Message } from './types';
 import axios from 'axios';
 import { Send, Paperclip, Mic, User, Sparkles } from 'lucide-react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import AuthCallback from './components/AuthCallback';
 import Background from './components/Background';
 import Logo from './components/Logo';
 import ModeToggle from './components/ModeToggle';
@@ -52,6 +54,18 @@ function TypewriterContent({ content, onComplete, chatContainerRef, speed = 15, 
 }
 
 export default function App() {
+  return (
+    <Router>
+      <Routes>
+        <Route path="/" element={<MessageInterface />} />
+        <Route path="/auth/callback" element={<AuthCallback />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </Router>
+  );
+}
+
+function MessageInterface() {
   const [mode, setMode] = useState<AppMode>('fast');
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
@@ -319,24 +333,6 @@ export default function App() {
       style={{ height: viewportHeight }}
     >
       <Background />
-      
-      {/* Scroll to Bottom Indicator - only shows when paused and new messages arrives */}
-      <AnimatePresence>
-        {isUserScrolling && (isTyping || isThinking) && (
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 20 }}
-            onClick={() => {
-              setIsUserScrolling(false);
-              performAutoScroll();
-            }}
-            className="fixed bottom-32 left-1/2 -translate-x-1/2 z-[60] px-4 py-2 bg-purple-600 text-white text-[10px] font-black uppercase tracking-[0.2em] rounded-full shadow-[0_0_20px_rgba(168,85,247,0.4)] cursor-pointer hover:bg-purple-500 transition-all border border-purple-400/30"
-          >
-            Bridge Active • Live Stream Paused
-          </motion.div>
-        )}
-      </AnimatePresence>
       
       {/* Scroll to Bottom Indicator - only shows when paused and new messages arrives */}
       <AnimatePresence>
